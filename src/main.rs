@@ -46,7 +46,7 @@ impl Tlb {
         let offset_bits = 12; //Assuming a standard 4KB page
 
         let index = (address >> offset_bits) as usize % self.num_sets; //(address >> offset_bits) as usize & (self.num_sets - 1) this is faster than using % as it simulates the absolute speed of the hardware
-        let index_bits = (self.num_sets).ilog2() as u32; //used ilog2() because it performs integer logarithms as while using normal log by casting an integer as float, the float can sometimes return 2 as 1.9999999 which wiould then be truncated to 1 in the next casting conversion
+        let index_bits = (self.num_sets as f64).log2().ceil() as u32; //used ilog2() because it performs integer logarithms as while using normal log by casting an integer as float, the float can sometimes return 2 as 1.9999999 which wiould then be truncated to 1 in the next casting conversion
         let tag = address >> (offset_bits + index_bits); 
 
         (index,tag) 
@@ -90,38 +90,57 @@ impl Tlb {
     }
  }
 
+pub fn parsing_logic(tlb:&mut  Tlb, line: &str) -> () {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+        if parts.len() < 2 {return;}
+
+        let addr_str = match parts[1].split(',').next() {
+            Some(s) => s,
+            None => return
+        };
+
+        if let Ok(addr) = u64::from_str_radix(addr_str, 16) {
+            if !tlb.lookup(addr) {
+                let pfn = addr >> 12;
+                tlb.insert(addr, pfn);
+            }
+        }
+}
+
 fn main() {
-    let mut tlb = Tlb::new(4,   2);
+    let mut tlb = Tlb::new(16, 4);
 
-    let workload = vec![0x1000, 0x1004,
-        0x2000,
-        0x5000,
-        0x1008,
-        0x9000,
-        0x1000,
-        ];
+    let file = File::open("trace.txt").expect("could not find trace.txt");
+    let reader = BufReader::new(file);
 
-    println!("{:<15} | {:<8} | {:<5} | {:<5}", "Address", "Result", "Set", "Tag");
+    println!("file processing starts");
 
-    for addr in workload {
-        let (index,tag) = tlb.get_indices(addr);
-        
-        let hit = tlb.lookup(addr);
-        let result_str = if hit {"HIT"} else {"MISS"};
-        println!("{:<15} | {:<8} | {:<5} | {:<5}",addr,result_str,index,tag);
+    for (line_num, line_result) in reader.lines().enumerate() {
+        let line: String  = line_result.expect("error reading");
 
-        if !hit {
-            let pfn = addr >> 12;
-            tlb.insert(addr,pfn);
+        if line.starts_with(" L") || line.starts_with(" S") {
+            parsing_logic(&mut tlb, &line);
+        }
+        else if line.starts_with(" M") {
+            parsing_logic(&mut tlb, &line);
+            tlb.timer += 1;
+            tlb.hits += 1; 
+            
+        }  
+
+        //to track progress while executing
+        if line_num % 200000 == 0 && line_num > 0 {
+            println!("processed {} lines...", line_num);
         }
     }
 
-    println!("final result");
-    println!("Hits : {}", tlb.hits);
-    println!("Miss : {}", tlb.misses);
 
-    let hit_ratio = (tlb.hits as f64/(tlb.misses + tlb.hits) as f64) * 100.0;
+    let total = tlb.hits + tlb.misses;
+    let hit_ratio = (tlb.hits as f64 / total as f64) * 100.0;
 
-    println!("Hit rate : {:.2}%", hit_ratio);
+    println!("total accesses: {}", total);
+    println!("TLB hits:       {}", tlb.hits);
+    println!("TLB misses:     {}", tlb.misses);
+    println!("hit ratio:      {:.4}%", hit_ratio);
 
 }
