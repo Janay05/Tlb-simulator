@@ -90,25 +90,70 @@ impl Tlb {
     }
  }
 
-pub fn parsing_logic(tlb:&mut  Tlb, line: &str) -> () {
-    let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 2 {return;}
+struct TlbHierarchy {
+    l1d: Tlb,
+    l1i: Tlb,
+    l2: Tlb,
+    total_latency: u64,
+}
 
-        let addr_str = match parts[1].split(',').next() {
-            Some(s) => s,
-            None => return
-        };
-
-        if let Ok(addr) = u64::from_str_radix(addr_str, 16) {
-            if !tlb.lookup(addr) {
-                let pfn = addr >> 12;
-                tlb.insert(addr, pfn);
-            }
+impl TlbHierarchy {
+    pub fn new(
+        l1i_sets: usize, l1i_assoc: usize,
+        l1d_sets: usize, l1d_assoc: usize,
+        l2_sets: usize, l2_assoc: usize,
+    ) -> Self {
+        TlbHierarchy {
+            l1i: Tlb::new(l1i_sets, l1i_assoc),
+            l1d: Tlb::new(l1d_sets, l1d_assoc),
+            l2: Tlb::new(l2_sets, l2_assoc),
+            total_latency: 0,
         }
+    }
+
+    pub fn access(&mut self, addr: u64, is_instruction: bool) {
+        let l1_latency = 1;
+        let l2_latency = 10;
+        let mem_latency = 200;
+
+        let l1 = if is_instruction { &mut self.l1i } else { &mut self.l1d };
+
+        self.total_latency += l1_latency;
+
+        if l1.lookup(addr) {
+            return;
+        }
+
+        self.total_latency += l2_latency;
+        if self.l2.lookup(addr) {
+            let pfn = addr >> 12;
+            l1.insert(addr, pfn);
+        } else {
+            self.total_latency += mem_latency;
+            let pfn = addr >> 12;
+            self.l2.insert(addr, pfn);
+            l1.insert(addr, pfn);
+        }
+    }
+}
+
+pub fn parsing_logic(line: &str) -> Option<(u64, bool)> {
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 2 { return None; }
+
+    let op = parts[0];
+    let addr_str = parts[1].split(',').next()?;
+    let addr = u64::from_str_radix(addr_str, 16).ok()?;
+
+    match op {
+        "I" => Some((addr, true)),  // Instruction fetch
+        "L" | "S" | "M" => Some((addr, false)), // Data access
+        _ => None,
+    }
 }
 
 fn main() {
-    let mut tlb = Tlb::new(16, 4);
+    let mut tlb = TlbHierarchy::new(16, 4, 16, 4, 128, 8);
 
     let file = File::open("trace.txt").expect("could not find trace.txt");
     let reader = BufReader::new(file);
@@ -118,15 +163,13 @@ fn main() {
     for (line_num, line_result) in reader.lines().enumerate() {
         let line: String  = line_result.expect("error reading");
 
-        if line.starts_with(" L") || line.starts_with(" S") {
-            parsing_logic(&mut tlb, &line);
+        if let Some((addr,is_instr)) = parsing_logic(&line) {
+            tlb.access(addr, is_instr);
+
+            if line.starts_with(" M") {
+            tlb.access(addr, is_instr);
         }
-        else if line.starts_with(" M") {
-            parsing_logic(&mut tlb, &line);
-            tlb.timer += 1;
-            tlb.hits += 1; 
-            
-        }  
+        }
 
         //to track progress while executing
         if line_num % 200000 == 0 && line_num > 0 {
@@ -134,13 +177,14 @@ fn main() {
         }
     }
 
+    let total_accesses = tlb.l1d.hits + tlb.l1i.hits + tlb.l1i.misses + tlb.l1d.misses ;
+    let l1_hit_rate = (tlb.l1d.hits + tlb.l1i.hits) as f64/total_accesses as f64 * 100.00;
+    let l2_hit_rate = tlb.l2.hits as f64/(tlb.l1i.misses + tlb.l1d.misses) as f64 * 100.00;
 
-    let total = tlb.hits + tlb.misses;
-    let hit_ratio = (tlb.hits as f64 / total as f64) * 100.0;
-
-    println!("total accesses: {}", total);
-    println!("TLB hits:       {}", tlb.hits);
-    println!("TLB misses:     {}", tlb.misses);
-    println!("hit ratio:      {:.4}%", hit_ratio);
+    let amat = tlb.total_latency as f64 / total_accesses as f64;
+    println!("total accesses: {}", total_accesses);
+    println!("l1 hit ratio:      {:.4}%", l1_hit_rate);
+    println!("l2 hit ratio:      {:.4}%", l2_hit_rate);
+    println!("AMAT: {}", amat);
 
 }
