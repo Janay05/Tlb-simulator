@@ -76,31 +76,30 @@ impl Tlb {
                     entry.last_access = self.timer;
                     return true;
                 }
-            } else {
-                if tag_4kb == entry.tag {
-                    self.hits = self.hits + 1;
+               else if tag_4kb == entry.tag {
+                    self.hits += 1;
                     entry.last_access = self.timer; //update the last_access variable
                     return true;
                 }
             }
         }
-        self.misses = self.misses + 1;
-        return false;
+        self.misses += 1;
+        false
     }
     pub fn insert(&mut self, address: u64, pfn: u64, is_huge: bool) {
         let (index, tag) = self.get_indices(address);
         let mut victim_way: usize = 0;
         let mut min_time = u64::MAX;
         for (way_index, entry) in self.sets[index].iter_mut().enumerate() {
-            if entry.valid == false {
+            if !entry.valid {
                 victim_way = way_index;
                 break;
-            } else {
-                if entry.last_access < min_time {
+            } 
+            else if entry.last_access < min_time {
                     min_time = entry.last_access;
                     victim_way = way_index;
-                }
             }
+            
         }
         self.sets[index][victim_way].tag = tag;
         self.sets[index][victim_way].pfn = pfn;
@@ -117,14 +116,12 @@ impl Tlb {
         let mut victim_way: usize = 0;
         let mut min_time = u64::MAX;
         for (way_index, entry) in self.sets[index].iter_mut().enumerate() {
-            if entry.valid == false {
+            if !entry.valid {
                 victim_way = way_index;
                 break;
-            } else {
-                if entry.last_access < min_time {
+            } else if entry.last_access < min_time {
                     min_time = entry.last_access;
                     victim_way = way_index;
-                }
             }
         }
         self.sets[index][victim_way].tag = tag;
@@ -133,12 +130,12 @@ impl Tlb {
         self.sets[index][victim_way].is_huge = true;
         self.sets[index][victim_way].valid = true;
     }
-    pub fn invalidate_region(&mut self, base_address: u64) -> () {
+    pub fn invalidate_region(&mut self, base_address: u64) {
         let start_vpn = base_address >> 12;
         let end_vpn = start_vpn + 511;
         for index in 0..self.num_sets {
             for entry in &mut self.sets[index] {
-                if entry.is_huge == false && entry.vpn <= end_vpn && entry.vpn >= start_vpn {
+                if !entry.is_huge && entry.vpn <= end_vpn && entry.vpn >= start_vpn {
                     entry.valid = false;
                 }
             }
@@ -178,7 +175,7 @@ impl TlbHierarchy {
 
     pub fn access(&mut self, addr: u64, is_instruction: bool) {
         const PROMOTION_THRESHOLD: usize = 64;
-        self.unique_4kb_pages_touched.insert(addr >> 12);;
+        self.unique_4kb_pages_touched.insert(addr >> 12);
         let l1_latency = 1;
         let l2_latency = 10;
         let mem_latency = 200;
@@ -273,17 +270,18 @@ fn main() {
 
         //to track progress while executing
         if line_num % 100000 == 0 && line_num > 0 {
-            let current_actual_mb = (tlb.unique_4kb_pages_touched.len() as f64 * 4096.0) / 1_048_576.0;
-            let current_physical_mb = (tlb.total_huge_pages as f64 * 2.0 * 1024.0 * 1024.0) / 1_048_576.0;
+            let current_actual_mb =
+                (tlb.unique_4kb_pages_touched.len() as f64 * 4096.0) / 1_048_576.0;
+            let current_physical_mb =
+                (tlb.total_huge_pages as f64 * 2.0 * 1024.0 * 1024.0) / 1_048_576.0;
             let current_frag = if current_physical_mb > current_actual_mb {
-            current_physical_mb - current_actual_mb
-            } 
-            else {
+                current_physical_mb - current_actual_mb
+            } else {
                 0.0
             };
 
-    println!("DATA_POINT,{},{:.2}", line_num, current_frag);
-}
+            println!("DATA_POINT,{},{:.2}", line_num, current_frag);
+        }
     }
 
     let total_accesses = tlb.l1d.hits + tlb.l1i.hits + tlb.l1i.misses + tlb.l1d.misses;
@@ -320,13 +318,16 @@ fn main() {
     } else {
         0.0
     };
-    println!("        TLB SIMULATION REPORT       ");;
+    println!("        TLB SIMULATION REPORT       ");
     println!("Total CPU Requests:      {}", total_accesses);
     println!("AMAT (Avg Latency):      {:.4} cycles/access", amat);
     println!("L1 global hit ratio:     {:.4}%", l1_hit_rate);
     println!("L2 local hit ratio:      {:.4}%", l2_hit_rate);
     println!("Huge pages promoted:     {}", tlb.total_huge_pages);
-    println!("Huge page hits:          {}", tlb.l1d.huge_hits + tlb.l1i.huge_hits + tlb.l2.huge_hits);
+    println!(
+        "Huge page hits:          {}",
+        tlb.l1d.huge_hits + tlb.l1i.huge_hits + tlb.l2.huge_hits
+    );
     println!("Actual memory touched:   {:.2} MB", actual_usage_mb);
     println!("Physical footprint:      {:.2} MB", physical_footprint_mb);
     println!("Internal fragmentation:  {:.2} MB", fragmentation_mb);
