@@ -1,1 +1,4 @@
 /target
+/trace.txt
+/simulation_log.txt
+/venv

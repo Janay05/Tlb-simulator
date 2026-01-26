@@ -19,6 +19,7 @@ struct Tlb {
 
     //Stats
     hits: u64,
+    huge_hits: u64,
     misses: u64,
 
     //Global Clock variable for LRU
@@ -43,6 +44,7 @@ impl Tlb {
             num_sets,
             associativity,
             hits: 0,
+            huge_hits: 0,
             misses: 0,
             timer: 0,
         }
@@ -70,6 +72,7 @@ impl Tlb {
             if entry.is_huge {
                 if tag_2mb == entry.tag {
                     self.hits += 1;
+                    self.huge_hits += 1;
                     entry.last_access = self.timer;
                     return true;
                 }
@@ -126,6 +129,7 @@ impl Tlb {
         }
         self.sets[index][victim_way].tag = tag;
         self.sets[index][victim_way].pfn = pfn;
+        self.sets[index][victim_way].vpn = address >> 12;
         self.sets[index][victim_way].is_huge = true;
         self.sets[index][victim_way].valid = true;
     }
@@ -268,9 +272,18 @@ fn main() {
         }
 
         //to track progress while executing
-        if line_num % 200000 == 0 && line_num > 0 {
-            println!("processed {} lines...", line_num);
-        }
+        if line_num % 100000 == 0 && line_num > 0 {
+            let current_actual_mb = (tlb.unique_4kb_pages_touched.len() as f64 * 4096.0) / 1_048_576.0;
+            let current_physical_mb = (tlb.total_huge_pages as f64 * 2.0 * 1024.0 * 1024.0) / 1_048_576.0;
+            let current_frag = if current_physical_mb > current_actual_mb {
+            current_physical_mb - current_actual_mb
+            } 
+            else {
+                0.0
+            };
+
+    println!("DATA_POINT,{},{:.2}", line_num, current_frag);
+}
     }
 
     let total_accesses = tlb.l1d.hits + tlb.l1i.hits + tlb.l1i.misses + tlb.l1d.misses;
@@ -290,8 +303,8 @@ fn main() {
     };
     let amat = tlb.total_latency as f64 / total_accesses as f64;
 
-    // 2. RESEARCHER (MEMORY WASTE) METRICS
-    // We assume the OS allocates memory in 4KB chunks unless it's a Huge Page.
+    //2.MEMORY WASTE METRICS
+    //We assume the OS allocates memory in 4KB chunks unless it's a Huge Page.
     let page_4kb_size: f64 = 4096.0;
     let huge_page_size: f64 = 2.0 * 1024.0 * 1024.0; // 2MB
 
@@ -307,12 +320,13 @@ fn main() {
     } else {
         0.0
     };
-    println!("        TLB HIERARCHY SIMULATION REPORT       ");;
+    println!("        TLB SIMULATION REPORT       ");;
     println!("Total CPU Requests:      {}", total_accesses);
     println!("AMAT (Avg Latency):      {:.4} cycles/access", amat);
     println!("L1 global hit ratio:     {:.4}%", l1_hit_rate);
     println!("L2 local hit ratio:      {:.4}%", l2_hit_rate);
     println!("Huge pages promoted:     {}", tlb.total_huge_pages);
+    println!("Huge page hits:          {}", tlb.l1d.huge_hits + tlb.l1i.huge_hits + tlb.l2.huge_hits);
     println!("Actual memory touched:   {:.2} MB", actual_usage_mb);
     println!("Physical footprint:      {:.2} MB", physical_footprint_mb);
     println!("Internal fragmentation:  {:.2} MB", fragmentation_mb);
