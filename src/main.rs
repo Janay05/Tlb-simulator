@@ -1,12 +1,15 @@
 use std::fs::File;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 
 #[derive(Clone,Copy,Debug)]
 struct TlbEntry {
+    vpn: u64,
     tag: u64,
     pfn: u64,
     valid: bool,
     last_access: u64,
+    is_huge: bool, 
 }
 
 struct Tlb {
@@ -25,10 +28,12 @@ impl Tlb {
     pub fn new(num_sets: usize, associativity: usize) -> Self {
         assert!(num_sets > 0);  
         let blank_entry = TlbEntry {
+            vpn: 0,
             tag: 0,
             pfn: 0,
             valid: false,
             last_access: 0,
+            is_huge: false,
         };
 
         let sets = vec![vec![blank_entry; associativity]; num_sets];
@@ -46,7 +51,7 @@ impl Tlb {
         let offset_bits = 12; //Assuming a standard 4KB page
 
         let index = (address >> offset_bits) as usize % self.num_sets; //(address >> offset_bits) as usize & (self.num_sets - 1) this is faster than using % as it simulates the absolute speed of the hardware
-        let index_bits = (self.num_sets as f64).log2().ceil() as u32; //used ilog2() because it performs integer logarithms as while using normal log by casting an integer as float, the float can sometimes return 2 as 1.9999999 which wiould then be truncated to 1 in the next casting conversion
+        let index_bits = (self.num_sets as f64).log2().ceil() as u32;
         let tag = address >> (offset_bits + index_bits); 
 
         (index,tag) 
@@ -55,19 +60,33 @@ impl Tlb {
     }
     pub fn lookup(&mut self, address: u64) -> bool {
         self.timer += 1;
-        let (index,tag) = self.get_indices(address);
+        let (index,tag_4kb) = self.get_indices(address);
+
+        let tag_2mb = address >> 21;
+
         for entry in &mut self.sets[index] {
-            if tag == entry.tag && entry.valid == true {
-                self.hits = self.hits + 1 ;
-                
-                entry.last_access = self.timer;//update the last_access variable
-                return true;
+
+            if !entry.valid {continue;}
+
+            if entry.is_huge {
+                if tag_2mb == entry.tag {
+                    self.hits += 1;
+                    entry.last_access = self.timer;
+                    return true;
+                }
+            }
+            else {
+                if tag_4kb == entry.tag {
+                    self.hits = self.hits + 1 ;
+                    entry.last_access = self.timer;//update the last_access variable
+                    return true;
+                }
             }
         }
         self.misses = self.misses + 1 ;
         return false;
     }
-    pub fn insert(&mut self, address: u64, pfn: u64) -> () {
+    pub fn insert(&mut self, address: u64, pfn: u64, is_huge: bool) {
         let (index,tag) = self.get_indices(address);
         let mut victim_way: usize = 0;
         let mut min_time = u64::MAX;
@@ -85,8 +104,46 @@ impl Tlb {
         }
         self.sets[index][victim_way].tag = tag;
         self.sets[index][victim_way].pfn = pfn;
+        self.sets[index][victim_way].vpn = address >> 12;
         self.sets[index][victim_way].valid = true;
+        self.sets[index][victim_way].is_huge = is_huge;
         self.sets[index][victim_way].last_access = self.timer;
+    }
+
+    pub fn insert_huge(&mut self, address: u64, pfn: u64) {
+        let index = (address >> 21) as usize % self.num_sets;
+        let tag = address >> 21;
+
+        let mut victim_way: usize = 0;
+        let mut min_time = u64::MAX;
+        for (way_index,entry) in self.sets[index].iter_mut().enumerate() {
+            if entry.valid == false {
+                victim_way = way_index;
+                break;
+            }
+            else {
+                if entry.last_access < min_time {
+                    min_time = entry.last_access;
+                    victim_way = way_index;
+                }
+            }
+        }
+        self.sets[index][victim_way].tag = tag;
+        self.sets[index][victim_way].pfn = pfn;
+        self.sets[index][victim_way].is_huge = true;
+        self.sets[index][victim_way].valid = true;
+    }
+    pub fn invalidate_region(&mut self, base_address: u64) -> () {
+        let start_vpn = base_address >> 12;
+        let end_vpn = start_vpn + 511;
+        for index in 0..self.num_sets {
+            for entry in &mut self.sets[index] {
+                if entry.is_huge == false && entry.vpn <= end_vpn && entry.vpn >= start_vpn {
+                    entry.valid = false;
+                }
+            }
+        }
+
     }
  }
 
@@ -95,6 +152,7 @@ struct TlbHierarchy {
     l1i: Tlb,
     l2: Tlb,
     total_latency: u64,
+    tracker: HashMap<u64, HashSet<u64>>,
 }
 
 impl TlbHierarchy {
@@ -108,13 +166,17 @@ impl TlbHierarchy {
             l1d: Tlb::new(l1d_sets, l1d_assoc),
             l2: Tlb::new(l2_sets, l2_assoc),
             total_latency: 0,
+            tracker: HashMap::<u64, HashSet<u64>>::new(),
         }
     }
 
     pub fn access(&mut self, addr: u64, is_instruction: bool) {
+        const PROMOTION_THRESHOLD: usize = 64;
         let l1_latency = 1;
         let l2_latency = 10;
         let mem_latency = 200;
+
+        let region_key = addr & !0x1FFFFF ;
 
         let l1 = if is_instruction { &mut self.l1i } else { &mut self.l1d };
 
@@ -127,13 +189,33 @@ impl TlbHierarchy {
         self.total_latency += l2_latency;
         if self.l2.lookup(addr) {
             let pfn = addr >> 12;
-            l1.insert(addr, pfn);
+            l1.insert(addr, pfn, false);
         } else {
             self.total_latency += mem_latency;
             let pfn = addr >> 12;
-            self.l2.insert(addr, pfn);
-            l1.insert(addr, pfn);
+            self.l2.insert(addr, pfn, false);
+            l1.insert(addr, pfn, false);
+
+            let vpn_4kb = addr >> 12;
+            let set = self.tracker.entry(region_key).or_insert_with(HashSet::new);
+            set.insert(vpn_4kb);
+
+            if set.len() >= PROMOTION_THRESHOLD {
+                self.promote(region_key, is_instruction);
+                self.tracker.remove(&region_key);
+            }
         }
+    }
+    pub fn promote(&mut self, base_addr: u64, is_instruction: bool) {
+        self.l1i.invalidate_region(base_addr);
+        self.l1d.invalidate_region(base_addr);
+        self.l2.invalidate_region(base_addr);
+
+        let pfn_huge = base_addr >> 12;
+        self.l2.insert_huge(base_addr, pfn_huge);
+    
+        let l1 = if is_instruction { &mut self.l1i } else { &mut self.l1d };
+        l1.insert_huge(base_addr, pfn_huge);
     }
 }
 
