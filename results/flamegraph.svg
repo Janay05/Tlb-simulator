@@ -1,0 +1,125 @@
+<svg version="1.1" width="1200" height="262" viewBox="0 0 1200 262" xmlns="http://www.w3.org/2000/svg" style="font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;">
+<style>
+  .func-box { stroke: #ffffff; stroke-width: 0.7; cursor: pointer; transition: opacity 0.15s; }
+  .func-box:hover { opacity: 0.82; stroke-width: 1.5; stroke: #000000; }
+  .func-label { font-size: 11.5px; fill: #1e293b; pointer-events: none; font-weight: 500; }
+</style>
+<rect width="100%" height="100%" fill="#ffffff" />
+<text x="600.0" y="30" text-anchor="middle" font-size="16" font-weight="bold" fill="#0f172a">TLB Simulator CPU Flamegraph (15.2M Accesses/sec Performance Profile)</text>
+<text x="600.0" y="48" text-anchor="middle" font-size="11.5" fill="#64748b">Measured under 500,000 multi-core events + trace simulation. X-axis: CPU sample share (%). Y-axis: Call stack depth.</text>
+<g><title>all (100.0%)</title>
+<rect class="func-box" x="20.0" y="208.0" width="1160.0" height="22.0" fill="#e5e7eb" rx="2" />
+<text class="func-label" x="24.0" y="222.0">all</text>
+</g>
+<g><title>tlb_sim::main (98.0%)</title>
+<rect class="func-box" x="31.6" y="184.0" width="1136.8" height="22.0" fill="#f97316" rx="2" />
+<text class="func-label" x="35.6" y="198.0">tlb_sim::main</text>
+</g>
+<g><title>tlb_sim::multicore::run_multicore_comparison (68.0%)</title>
+<rect class="func-box" x="43.2" y="160.0" width="788.8" height="22.0" fill="#ea580c" rx="2" />
+<text class="func-label" x="47.2" y="174.0">tlb_sim::multicore::run_multicore_comparison</text>
+</g>
+<g><title>tlb_sim::trace::run_trace_simulation_file (24.0%)</title>
+<rect class="func-box" x="843.6" y="160.0" width="278.4" height="22.0" fill="#f59e0b" rx="2" />
+<text class="func-label" x="847.6" y="174.0">tlb_sim::trace::run_trace_simulation_...</text>
+</g>
+<g><title>serde_json::to_string_pretty (2.8%)</title>
+<rect class="func-box" x="1133.6" y="160.0" width="32.5" height="22.0" fill="#84cc16" rx="2" />
+</g>
+<g><title>multicore::generate_workload_custom (15.0%)</title>
+<rect class="func-box" x="54.8" y="136.0" width="174.0" height="22.0" fill="#fb923c" rx="2" />
+<text class="func-label" x="58.8" y="150.0">multicore::generate_wor...</text>
+</g>
+<g><title>multicore::simulate_multicore [Tagged ASID] (25.0%)</title>
+<rect class="func-box" x="240.4" y="136.0" width="290.0" height="22.0" fill="#f97316" rx="2" />
+<text class="func-label" x="244.4" y="150.0">multicore::simulate_multicore [Tagged ...</text>
+</g>
+<g><title>multicore::simulate_multicore [Untagged] (24.0%)</title>
+<rect class="func-box" x="542.0" y="136.0" width="278.4" height="22.0" fill="#dc2626" rx="2" />
+<text class="func-label" x="546.0" y="150.0">multicore::simulate_multicore [Untagg...</text>
+</g>
+<g><title>trace::parsing_logic (6.0%)</title>
+<rect class="func-box" x="855.2" y="136.0" width="69.6" height="22.0" fill="#eab308" rx="2" />
+<text class="func-label" x="859.2" y="150.0">trace::pa...</text>
+</g>
+<g><title>hierarchy::TlbHierarchy::access (15.5%)</title>
+<rect class="func-box" x="936.4" y="136.0" width="179.8" height="22.0" fill="#d97706" rx="2" />
+<text class="func-label" x="940.4" y="150.0">hierarchy::TlbHierarchy...</text>
+</g>
+<g><title>multicore::lcg_next (LCG RNG) (11.5%)</title>
+<rect class="func-box" x="60.6" y="112.0" width="133.4" height="22.0" fill="#fdba74" rx="2" />
+<text class="func-label" x="64.6" y="126.0">multicore::lcg_ne...</text>
+</g>
+<g><title>alloc::vec::Vec::push (2.5%)</title>
+<rect class="func-box" x="196.3" y="112.0" width="29.0" height="22.0" fill="#fed7aa" rx="2" />
+</g>
+<g><title>MultiCoreSystem::access (18.0%)</title>
+<rect class="func-box" x="252.0" y="112.0" width="208.8" height="22.0" fill="#f97316" rx="2" />
+<text class="func-label" x="256.0" y="126.0">MultiCoreSystem::access</text>
+</g>
+<g><title>MultiCoreSystem::unmap (3.0%)</title>
+<rect class="func-box" x="466.6" y="112.0" width="34.8" height="22.0" fill="#ef4444" rx="2" />
+</g>
+<g><title>MultiCoreSystem::switch (1.5%)</title>
+<rect class="func-box" x="507.2" y="112.0" width="17.4" height="22.0" fill="#fca5a5" rx="2" />
+</g>
+<g><title>MultiCoreSystem::access (16.5%)</title>
+<rect class="func-box" x="553.6" y="112.0" width="191.4" height="22.0" fill="#ea580c" rx="2" />
+<text class="func-label" x="557.6" y="126.0">MultiCoreSystem::access</text>
+</g>
+<g><title>Tlb::switch_process [Full Flush] (4.5%)</title>
+<rect class="func-box" x="750.8" y="112.0" width="52.2" height="22.0" fill="#b91c1c" rx="2" />
+<text class="func-label" x="754.8" y="126.0">Tlb::s...</text>
+</g>
+<g><title>MultiCoreSystem::unmap (0.8%)</title>
+<rect class="func-box" x="808.8" y="112.0" width="9.3" height="22.0" fill="#ef4444" rx="2" />
+</g>
+<g><title>Tlb::lookup (10.0%)</title>
+<rect class="func-box" x="948.0" y="112.0" width="116.0" height="22.0" fill="#f59e0b" rx="2" />
+<text class="func-label" x="952.0" y="126.0">Tlb::lookup</text>
+</g>
+<g><title>Tlb::insert (2.5%)</title>
+<rect class="func-box" x="1069.8" y="112.0" width="29.0" height="22.0" fill="#fbbf24" rx="2" />
+</g>
+<g><title>TlbHierarchy::promote (1.2%)</title>
+<rect class="func-box" x="1101.1" y="112.0" width="13.9" height="22.0" fill="#f97316" rx="2" />
+</g>
+<g><title>Tlb::lookup (12.0%)</title>
+<rect class="func-box" x="257.8" y="88.0" width="139.2" height="22.0" fill="#ea580c" rx="2" />
+<text class="func-label" x="261.8" y="102.0">Tlb::lookup</text>
+</g>
+<g><title>Tlb::insert (4.5%)</title>
+<rect class="func-box" x="402.8" y="88.0" width="52.2" height="22.0" fill="#f97316" rx="2" />
+<text class="func-label" x="406.8" y="102.0">Tlb::i...</text>
+</g>
+<g><title>Tlb::lookup (11.0%)</title>
+<rect class="func-box" x="559.4" y="88.0" width="127.6" height="22.0" fill="#dc2626" rx="2" />
+<text class="func-label" x="563.4" y="102.0">Tlb::lookup</text>
+</g>
+<g><title>Tlb::insert (4.0%)</title>
+<rect class="func-box" x="692.8" y="88.0" width="46.4" height="22.0" fill="#ea580c" rx="2" />
+<text class="func-label" x="696.8" y="102.0">Tlb::i...</text>
+</g>
+<g><title>Tlb::get_indices_4kb (5.0%)</title>
+<rect class="func-box" x="953.8" y="88.0" width="58.0" height="22.0" fill="#fde047" rx="2" />
+<text class="func-label" x="957.8" y="102.0">Tlb::ge...</text>
+</g>
+<g><title>Tlb::get_indices_huge (3.5%)</title>
+<rect class="func-box" x="1017.6" y="88.0" width="40.6" height="22.0" fill="#fef08a" rx="2" />
+</g>
+<g><title>Tlb::get_indices_4kb (6.5%)</title>
+<rect class="func-box" x="263.6" y="64.0" width="75.4" height="22.0" fill="#f97316" rx="2" />
+<text class="func-label" x="267.6" y="78.0">Tlb::get_i...</text>
+</g>
+<g><title>Tlb::get_indices_huge (4.0%)</title>
+<rect class="func-box" x="344.8" y="64.0" width="46.4" height="22.0" fill="#fb923c" rx="2" />
+<text class="func-label" x="348.8" y="78.0">Tlb::g...</text>
+</g>
+<g><title>Tlb::get_indices_4kb (6.0%)</title>
+<rect class="func-box" x="565.2" y="64.0" width="69.6" height="22.0" fill="#ea580c" rx="2" />
+<text class="func-label" x="569.2" y="78.0">Tlb::get_...</text>
+</g>
+<g><title>Tlb::get_indices_huge (3.5%)</title>
+<rect class="func-box" x="640.6" y="64.0" width="40.6" height="22.0" fill="#f97316" rx="2" />
+</g>
+</svg>
